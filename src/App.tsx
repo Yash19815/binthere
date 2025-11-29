@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import LoginPage from './components/login-page';
 import DustbinsOverview from './components/dustbins-overview';
 import { Toaster } from './components/ui/sonner';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
