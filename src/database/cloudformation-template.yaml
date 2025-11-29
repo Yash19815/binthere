@@ -1,0 +1,214 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'BinThere - Smart Waste Management DynamoDB Tables'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: prod
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment name for resource naming
+
+Resources:
+  # ============================================================================
+  # TABLE 1: DUSTBINS
+  # ============================================================================
+  DustbinsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'BinThere-Dustbins-${Environment}'
+      BillingMode: PAY_PER_REQUEST  # On-Demand pricing
+      AttributeDefinitions:
+        # Primary Key
+        - AttributeName: id
+          AttributeType: S
+        # GSI-1: CriticalDustbins
+        - AttributeName: criticalStatus
+          AttributeType: S
+        - AttributeName: criticalTimestamp
+          AttributeType: N
+        # GSI-2: LocationIndex
+        - AttributeName: location
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH  # Partition Key
+      GlobalSecondaryIndexes:
+        # GSI-1: Query critical dustbins for notifications
+        - IndexName: CriticalDustbins
+          KeySchema:
+            - AttributeName: criticalStatus
+              KeyType: HASH
+            - AttributeName: criticalTimestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        # GSI-2: Query dustbins by location
+        - IndexName: LocationIndex
+          KeySchema:
+            - AttributeName: location
+              KeyType: HASH
+            - AttributeName: id
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Application
+          Value: BinThere
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # ============================================================================
+  # TABLE 2: ANALYTICS HISTORY
+  # ============================================================================
+  AnalyticsHistoryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'BinThere-AnalyticsHistory-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        # Primary Key
+        - AttributeName: compositeKey
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+        # GSI-1: PeriodIndex
+        - AttributeName: period
+          AttributeType: S
+      KeySchema:
+        - AttributeName: compositeKey
+          KeyType: HASH  # Partition Key (e.g., "001#2025-10")
+        - AttributeName: timestamp
+          KeyType: RANGE  # Sort Key (e.g., "2025-10-21")
+      GlobalSecondaryIndexes:
+        # GSI-1: Query all dustbins for a specific period
+        - IndexName: PeriodIndex
+          KeySchema:
+            - AttributeName: period
+              KeyType: HASH
+            - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Application
+          Value: BinThere
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # ============================================================================
+  # TABLE 3: IOT SENSOR LOGS (Optional)
+  # ============================================================================
+  IoTSensorLogsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'BinThere-IoTSensorLogs-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: deviceId
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: N
+      KeySchema:
+        - AttributeName: deviceId
+          KeyType: HASH  # Partition Key
+        - AttributeName: timestamp
+          KeyType: RANGE  # Sort Key (Unix timestamp)
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true  # Auto-delete logs after 90 days
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Application
+          Value: BinThere
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # ============================================================================
+  # TABLE 4: SYSTEM CONFIG (Optional)
+  # ============================================================================
+  SystemConfigTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'BinThere-SystemConfig-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: configKey
+          AttributeType: S
+      KeySchema:
+        - AttributeName: configKey
+          KeyType: HASH  # Partition Key
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Application
+          Value: BinThere
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: ManagedBy
+          Value: CloudFormation
+
+# ============================================================================
+# OUTPUTS
+# ============================================================================
+Outputs:
+  DustbinsTableName:
+    Description: Name of the Dustbins DynamoDB table
+    Value: !Ref DustbinsTable
+    Export:
+      Name: !Sub '${AWS::StackName}-DustbinsTable'
+
+  DustbinsTableArn:
+    Description: ARN of the Dustbins DynamoDB table
+    Value: !GetAtt DustbinsTable.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-DustbinsTableArn'
+
+  AnalyticsHistoryTableName:
+    Description: Name of the AnalyticsHistory DynamoDB table
+    Value: !Ref AnalyticsHistoryTable
+    Export:
+      Name: !Sub '${AWS::StackName}-AnalyticsHistoryTable'
+
+  AnalyticsHistoryTableArn:
+    Description: ARN of the AnalyticsHistory DynamoDB table
+    Value: !GetAtt AnalyticsHistoryTable.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-AnalyticsHistoryTableArn'
+
+  IoTSensorLogsTableName:
+    Description: Name of the IoTSensorLogs DynamoDB table
+    Value: !Ref IoTSensorLogsTable
+    Export:
+      Name: !Sub '${AWS::StackName}-IoTSensorLogsTable'
+
+  IoTSensorLogsTableArn:
+    Description: ARN of the IoTSensorLogs DynamoDB table
+    Value: !GetAtt IoTSensorLogsTable.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-IoTSensorLogsTableArn'
+
+  SystemConfigTableName:
+    Description: Name of the SystemConfig DynamoDB table
+    Value: !Ref SystemConfigTable
+    Export:
+      Name: !Sub '${AWS::StackName}-SystemConfigTable'
+
+  SystemConfigTableArn:
+    Description: ARN of the SystemConfig DynamoDB table
+    Value: !GetAtt SystemConfigTable.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-SystemConfigTableArn'
