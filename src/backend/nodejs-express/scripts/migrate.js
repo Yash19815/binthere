@@ -15,9 +15,25 @@ async function runMigration() {
   console.log();
 
   // Create database connection
+  // Remove sslmode from connection string and handle SSL via config
+  let connectionString = process.env.DATABASE_URL;
+  const needsSSL = connectionString?.includes('sslmode=require') || 
+                   connectionString?.includes('ssl=true') ||
+                   connectionString?.includes('rds.amazonaws.com') || // AWS RDS
+                   process.env.NODE_ENV === 'production';
+
+  // Remove SSL parameters from connection string to avoid conflicts
+  if (connectionString) {
+    connectionString = connectionString
+      .replace(/[?&]sslmode=\w+/, '')
+      .replace(/[?&]ssl=\w+/, '');
+  }
+
+  const sslConfig = needsSSL ? { rejectUnauthorized: false } : false;
+    
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    connectionString: connectionString,
+    ssl: sslConfig,
   });
 
   try {
