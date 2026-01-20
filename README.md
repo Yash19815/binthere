@@ -75,8 +75,7 @@ A web application for real-time monitoring of dustbin fill levels, showing an in
 
 **Default Login Credentials:**
 - Email: `admin@binthere.com`
-- Password: `admin123`
-- ⚠️ Change these in production!
+- Password: `admin123'
 
 ## Data Flow
 
