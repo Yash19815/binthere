@@ -8,9 +8,32 @@ const { Pool } = require('pg');
 // DATABASE CONNECTION
 // ============================================================================
 
+// Determine SSL configuration
+// AWS RDS and most cloud providers use self-signed certificates
+// Remove sslmode from connection string and handle SSL via config
+let connectionString = process.env.DATABASE_URL;
+const needsSSL = connectionString?.includes('sslmode=require') || 
+                 connectionString?.includes('ssl=true') ||
+                 connectionString?.includes('rds.amazonaws.com') || // AWS RDS
+                 process.env.NODE_ENV === 'production';
+
+// Remove SSL parameters from connection string to avoid conflicts
+if (connectionString) {
+  connectionString = connectionString
+    .replace(/[?&]sslmode=\w+/, '')
+    .replace(/[?&]ssl=\w+/, '');
+}
+
+const sslConfig = needsSSL ? { rejectUnauthorized: false } : false;
+
+// Debug logging
+if (process.env.LOG_LEVEL === 'debug') {
+  console.log('Database SSL Config:', { needsSSL, sslConfig });
+}
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  connectionString: connectionString,
+  ssl: sslConfig,
   min: parseInt(process.env.DB_POOL_MIN) || 2,
   max: parseInt(process.env.DB_POOL_MAX) || 10,
   idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT) || 30000,
